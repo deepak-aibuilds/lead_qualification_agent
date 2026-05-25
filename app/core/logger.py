@@ -1,5 +1,5 @@
 import logging
-from pythonjsonlogger import jsonlogger
+from pythonjsonlogger import json as jsonlogger
 
 def setup_logger():
     logger = logging.getLogger("api")
