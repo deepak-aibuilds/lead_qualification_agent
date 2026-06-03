@@ -6,11 +6,8 @@ class Settings(BaseSettings):
     mistral_api_key:  str
     groq_api_key:     str = ""
     secret_key:       str = ""
-    supabase_url:     str
-    supabase_key:     str
     redis_url:        str
     debug:            bool = False
-    cohere_api_key:   str
 
     model_config = ConfigDict(env_file=".env")
 
