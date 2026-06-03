@@ -1,8 +1,8 @@
 # Project Name
-[Project Name Here]
+AI Lead Qualification System
 
 ## What it does
-[One paragraph description]
+Automate manual lead scoring with a LangGraph multi-agent pipeline
 
 ## Stack
 FastAPI · PostgreSQL · SQLAlchemy · Alembic · Python 3.13

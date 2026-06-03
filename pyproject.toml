@@ -1,14 +1,16 @@
 [project]
-name = "fastapi-template"
+name = "lead_qualification_agent"
 version = "0.1.0"
-description = "Production-ready FastAPI template with SQLAlchemy, Alembic, and structured logging"
+description = "Automate manual lead scoring with a LangGraph multi-agent pipeline"
 readme = "README.md"
 requires-python = ">=3.13"
 dependencies = [
+    "asyncpg>=0.31.0",
     "fastapi>=0.136.1",
     "pydantic-settings>=2.14.0",
     "python-dotenv>=1.2.2",
     "python-json-logger>=4.1.0",
+    "python-multipart>=0.0.30",
     "sqlalchemy>=2.0.49",
     "uvicorn>=0.46.0",
 ]
