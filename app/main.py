@@ -5,7 +5,7 @@ from redis.asyncio import Redis
 from fastapi_limiter import FastAPILimiter
 from fastapi_limiter.depends import RateLimiter
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import text
+from sqlalchemy import text, select
 from app.core import logger
 import time
 from starlette.requests import Request
@@ -93,6 +93,20 @@ async def ing_leads(
     }
 
 
+@app.get('/leads/{id}')
+async def get_lead(id:int, db: AsyncSession = Depends(get_db)):
+    lead_db = await db.execute(select(Lead).where(Lead.id == id))
+    lead= lead_db.scalars().first()
+    if not lead:
+        raise HTTPException(status_code=404, detail='Lead Not Found')
+    return {
+        "lead_id":lead.id,
+        'lead_status': lead.status,
+        "lead_score":lead.score,
+        "lead_qualification":lead.classification,
+        'email_subject':lead.email_subject,
+        'email_body':lead.email_draft
+    }
 
 
    
