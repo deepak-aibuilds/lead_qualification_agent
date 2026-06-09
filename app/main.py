@@ -1,4 +1,4 @@
-from fastapi import FastAPI, Depends, Response, Form
+from fastapi import FastAPI, Depends, Response, Form, HTTPException
 from app.db import get_db
 from contextlib import asynccontextmanager
 from redis.asyncio import Redis
@@ -61,47 +61,70 @@ async def log_requests(request: Request, call_next):
 
 
 
-@app.post('/leads', dependencies=[
-    Depends(RateLimiter(times=5,seconds=60))
-])
+@app.post('/leads', dependencies=[Depends(RateLimiter(times=5, seconds=60))])
 async def ingest_leads(
     name: str = Form(...),
     email: str = Form(...),
-    company:str = Form(...),
-    budget:str = Form(...),
+    company: str = Form(...),
+    budget: str = Form(...),
     required_service: str = Form(...),
     db: AsyncSession = Depends(get_db)
 ):
-    chain = get_chain()
-    save_response = await chain.ainvoke({
-        'name': name,
-        'company': company,
-        'email': email,
-        'budget': budget,
-        'required_service': required_service
-    })
-    chain = get_email_chain()
-    email_response = await chain.ainvoke({
-                'name':name,
-                'company':company,
-               'email':email,
-                'required_service':required_service,
-                'budget':budget,
-                'lead_score':save_response.lead_score,
-                'qualification':save_response.qualification
-    })
-    new_lead = Lead(
-        name = name,
-        company_name = company,
-        budget = budget,
-        problem = required_service,
-        score = save_response.lead_score,
-        classification = save_response.qualification,
-        email_draft = email_response.body
-    )
-    db.add(new_lead)
-    await db.commit()
-    return {"email": email_response.body}
+    try:
+        qualify_chain = get_chain()
+        qualification = await qualify_chain.ainvoke({
+            'name': name,
+            'company': company,
+            'email': email,
+            'budget': budget,
+            'required_service': required_service
+        })
+    except Exception as e:
+        logger.error("qualification_failed", extra={"error": str(e)})
+        raise HTTPException(status_code=502, detail="Lead qualification failed")
+
+    try:
+        email_chain = get_email_chain()
+        email_result = await email_chain.ainvoke({
+            'name': name,
+            'company': company,
+            'email': email,
+            'required_service': required_service,
+            'budget': budget,
+            'lead_score': qualification.lead_score,
+            'qualification': qualification.qualification
+        })
+    except Exception as e:
+        logger.error("email_draft_failed", extra={"error": str(e)})
+        raise HTTPException(status_code=502, detail="Email generation failed")
+
+    try:
+        new_lead = Lead(
+            name=name,
+            company_name=company,
+            budget=budget,
+            problem=required_service,
+            score=qualification.lead_score,
+            classification=qualification.qualification,
+            reasoning=qualification.recommended_action,
+            email_draft=email_result.body,
+            status="scored"
+        )
+        db.add(new_lead)
+        await db.commit()
+        await db.refresh(new_lead)
+    except Exception as e:
+        await db.rollback()
+        logger.error("db_save_failed", extra={"error": str(e)})
+        raise HTTPException(status_code=500, detail="Failed to save lead")
+
+    return {
+        "id": new_lead.id,
+        "qualification": qualification.qualification,
+        "score": qualification.lead_score,
+        "recommended_action": qualification.recommended_action,
+        "email": email_result.body
+    }
 
 
     
