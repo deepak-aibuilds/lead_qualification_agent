@@ -1,4 +1,4 @@
-from fastapi import FastAPI, Depends, Response, Form, HTTPException
+from fastapi import FastAPI, Depends, Response, Form, HTTPException, BackgroundTasks
 from app.db import get_db
 from contextlib import asynccontextmanager
 from redis.asyncio import Redis
@@ -13,6 +13,7 @@ from typing import Literal
 from pydantic import BaseModel
 from app.llm import get_chain, get_email_chain
 from app.models import Lead
+from app.services import qualify_email_agent
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
@@ -59,56 +60,24 @@ async def log_requests(request: Request, call_next):
     )
     return response
 
-
-
 @app.post('/leads', dependencies=[Depends(RateLimiter(times=50, seconds=60))])
-async def ingest_leads(
+async def ing_leads(
+    background_tasks: BackgroundTasks,
     name: str = Form(...),
     email: str = Form(...),
     company: str = Form(...),
     budget: str = Form(...),
     required_service: str = Form(...),
     db: AsyncSession = Depends(get_db)
+    
 ):
-    try:
-        qualify_chain = get_chain()
-        qualification = await qualify_chain.ainvoke({
-            'name': name,
-            'company': company,
-            'email': email,
-            'budget': budget,
-            'required_service': required_service
-        })
-    except Exception as e:
-        logger.error("qualification_failed", extra={"error": str(e)})
-        raise HTTPException(status_code=502, detail="Lead qualification failed")
-
-    try:
-        email_chain = get_email_chain()
-        email_result = await email_chain.ainvoke({
-            'name': name,
-            'company': company,
-            'email': email,
-            'required_service': required_service,
-            'budget': budget,
-            'lead_score': qualification.lead_score,
-            'qualification': qualification.qualification
-        })
-    except Exception as e:
-        logger.error("email_draft_failed", extra={"error": str(e)})
-        raise HTTPException(status_code=502, detail="Email generation failed")
-
     try:
         new_lead = Lead(
             name=name,
             company_name=company,
             budget=budget,
             problem=required_service,
-            score=qualification.lead_score,
-            classification=qualification.qualification,
-            reasoning=qualification.recommended_action,
-            email_draft=email_result.body,
-            status="scored"
+            email=email
         )
         db.add(new_lead)
         await db.commit()
@@ -117,17 +86,18 @@ async def ingest_leads(
         await db.rollback()
         logger.error("db_save_failed", extra={"error": str(e)})
         raise HTTPException(status_code=500, detail="Failed to save lead")
-
+    background_tasks.add_task(qualify_email_agent, new_lead.id)
     return {
-        "id": new_lead.id,
-        "qualification": qualification.qualification,
-        "score": qualification.lead_score,
-        "recommended_action": qualification.recommended_action,
-        "email": email_result.body
+     'id': new_lead.id,
+     'status': new_lead.status
     }
 
 
-    
+
+
+   
+
+
 
 
 @app.get("/health")
