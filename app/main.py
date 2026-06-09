@@ -61,7 +61,7 @@ async def log_requests(request: Request, call_next):
 
 
 
-@app.post('/leads', dependencies=[Depends(RateLimiter(times=5, seconds=60))])
+@app.post('/leads', dependencies=[Depends(RateLimiter(times=50, seconds=60))])
 async def ingest_leads(
     name: str = Form(...),
     email: str = Form(...),
