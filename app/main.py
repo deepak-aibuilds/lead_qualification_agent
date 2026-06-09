@@ -1,36 +1,21 @@
 from fastapi import FastAPI, Depends, Response, Form, HTTPException, BackgroundTasks
 from app.db import get_db
 from contextlib import asynccontextmanager
-from redis.asyncio import Redis
-from fastapi_limiter import FastAPILimiter
 from fastapi_limiter.depends import RateLimiter
+from pyrate_limiter import Duration, Limiter, Rate
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import text, select
 from app.core import logger
 import time
 from starlette.requests import Request
-from typing import Literal
 from pydantic import BaseModel
-from app.llm import get_chain, get_email_chain
 from app.models import Lead
 from app.services import qualify_email_agent
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    redis = Redis(
-        host="localhost",
-        port=6379,
-        db=0,
-        decode_responses=True,
-    )
-
-    await FastAPILimiter.init(redis)
-
-    app.state.redis = redis
-
     yield
 
-    await redis.close()
 
 app = FastAPI(lifespan=lifespan)
 class EmailModel(BaseModel):
@@ -60,7 +45,9 @@ async def log_requests(request: Request, call_next):
     )
     return response
 
-@app.post('/leads', dependencies=[Depends(RateLimiter(times=50, seconds=60))])
+@app.post('/leads', dependencies=[
+    Depends(RateLimiter(limiter=Limiter(Rate(50, Duration.MINUTE))))
+])
 async def ing_leads(
     background_tasks: BackgroundTasks,
     name: str = Form(...),

@@ -44,7 +44,7 @@ async def qualify_email_agent(id):
             "qualification": lead.classification,
             "score": lead.score,
             "recommended_action": qualification.recommended_action,
-            "email_subject": email_result.email_subject,
+            "email_subject": email_result.subject,
             'email_body': email_result.body
         }
         except Exception as e:

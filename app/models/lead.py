@@ -15,7 +15,7 @@ class Lead(Base):
     score          = Column(Integer, nullable=True)        
     classification = Column(String(20), nullable=True)    
     reasoning      = Column(Text, nullable=True)
-    email_subject  = Column(String(255), nullable=False)      
+    email_subject  = Column(String(255), nullable=True)      
     email_draft    = Column(Text, nullable=True)           
     status         = Column(String(50), default="pending") 
     created_at     = Column(DateTime(timezone=True), server_default=func.now())
