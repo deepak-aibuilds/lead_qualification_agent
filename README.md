@@ -41,7 +41,7 @@ alembic upgrade head
 
 uv run uvicorn app.main:app --reload
 ```
-# Optional: run the demo UI
+### Optional: run the demo UI
 uv pip install streamlit
 streamlit run demo.py
 ---
