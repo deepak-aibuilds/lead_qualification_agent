@@ -8,7 +8,11 @@ class Settings(BaseSettings):
     secret_key:       str = ""
     redis_url:        str
     debug:            bool = False
+    langsmith_api_key: str = ''
+    langsmith_tracing: bool = False
+    langsmith_endpoint: str = ''
 
+    langsmith_project: str = ''
     model_config = ConfigDict(env_file=".env")
 
 settings = Settings()

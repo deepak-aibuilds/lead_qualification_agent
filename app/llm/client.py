@@ -5,7 +5,7 @@ from langchain_groq import ChatGroq
 
 from typing import Literal
 from pathlib import Path
-
+from langsmith import traceable
 
 
 from dotenv import load_dotenv
@@ -45,6 +45,7 @@ prompt = ChatPromptTemplate.from_template(prompt_text)
 
 email_text = load_prompt('prompts/email_v1')
 email_prompt = ChatPromptTemplate.from_template(email_text)
+
 
 def get_chain():
     return prompt | llm.with_structured_output(LeadQualification)
