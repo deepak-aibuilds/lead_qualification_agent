@@ -16,3 +16,8 @@ async def test_post_lead_saves_pending(client: AsyncClient):
     assert response.status_code == 200
     assert response.json()["status"] == "pending"
     mock_task.assert_called_once()  
+
+@pytest.mark.anyio
+async def test_lead_id(client: AsyncClient):
+    response = await client.get('/leads/999')
+    assert response.status_code == 404
